@@ -28,28 +28,32 @@ class DisjointSet {
 
   Node This;
 
-public:
-  template<typename U>
-  DisjointSet(U &&Val): This(std::forward<U>(Val)) {}
-
-  void unite(DisjointSet &Other) {
-    Node *Lhs = &This;
-    Node *Rhs = &Other.This;
-    if (Lhs->Size < Rhs->Size) {
-      std::swap(Lhs, Rhs);
-    }
-
-    Rhs->Parent = Lhs;
-    Rhs->Size += Rhs->Size;
-  }
-
-  const T& findReprMember() {
+  Node *findReprNode() {
     Node *Cur = &This;
     while (Cur->Parent != Cur) {
       Cur = Cur->Parent;
     }
     This.Parent = Cur;
-    return Cur->Value;
+    return Cur;
+  }
+
+public:
+  template<typename U>
+  DisjointSet(U &&Val): This(std::forward<U>(Val)) {}
+
+  void unite(DisjointSet &Other) {
+    Node *Lhs = findReprNode();
+    Node *Rhs = Other.findReprNode();
+    if (Lhs->Size < Rhs->Size) {
+      std::swap(Lhs, Rhs);
+    }
+
+    Rhs->Parent = Lhs;
+    Lhs->Size += Rhs->Size;
+  }
+
+  const T& findReprMember() {
+    return findReprNode()->Value;
   }
 };
 
@@ -78,6 +82,9 @@ auto getMSTCommon(const Graph<Point> &G, InitAcc Initializer, UpdateAcc Updater)
   // Pick an edge and update accumulator
   // if this edge is not in MST and unite segments.
   // Otherwise skip the edge.
+  size_t AddedEdges = 0;
+  size_t MaxEdges = G.vertices_size() - 1;
+
   auto Accumulator = Initializer();
   for (auto Edge : EdgeCandidates) {
     auto &FromSet = Segments[Edge.From];
@@ -87,6 +94,9 @@ auto getMSTCommon(const Graph<Point> &G, InitAcc Initializer, UpdateAcc Updater)
     FromSet.unite(ToSet);
     Updater(Accumulator, std::move(Edge));
 
+    ++AddedEdges;
+    if (AddedEdges == MaxEdges)
+      break;
   }
 
   return Accumulator;
