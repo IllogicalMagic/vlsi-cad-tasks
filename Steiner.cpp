@@ -3,6 +3,7 @@
 #include "Types.h"
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <numeric>
 #include <string>
@@ -110,10 +111,47 @@ void connectPoints(std::vector<EdgeTy> &Edges, size_t PNum) {
   }
 }
 
-// Connect new point with others.
-void connectNewPoint(std::vector<EdgeTy> &Edges, size_t PNum) {
-  for (size_t i = 0; i < PNum; ++i)
-    Edges.emplace_back(i, PNum);
+// Connect new point with at most 8 others.
+// Divide all grid into octants and pick the closest
+// point in each octant.
+void connectNewPoint(std::vector<EdgeTy> &Edges, size_t PNum, const Graph<Point> &G) {
+  Point This = G.vertice(PNum);
+  std::array<size_t, 8> Selected;
+  std::array<Unit, 8> Dists;
+  Selected.fill(PNum);
+  Dists.fill(std::numeric_limits<Unit>::max());
+
+  for (size_t i = 0; i < PNum; ++i) {
+    Point To = G.vertice(i);
+    Unit XDiff = This.x - To.x;
+    Unit YDiff = This.y - To.y;
+    // Encode quadrant.
+    size_t Octant = ((static_cast<size_t>(XDiff < 0) << 1) |
+                     (static_cast<size_t>(YDiff < 0)));
+    // Based on result quadrant, select proper octant.
+    switch (Octant) {
+    case 0:
+    case 2:
+      Octant |= (static_cast<size_t>(XDiff < YDiff) << 2);
+      break;
+    case 1:
+    case 3:
+      Octant |= (static_cast<size_t>(XDiff >= YDiff) << 2);
+      break;
+    default:
+      __builtin_unreachable();
+    }
+    Unit Dist = dist(This, To);
+    if (Dist < Dists[Octant]) {
+      Selected[Octant] = i;
+      Dists[Octant] = Dist;
+    }
+  }
+
+  for (auto PtIdx : Selected) {
+    if (PtIdx != PNum)
+      Edges.emplace_back(PtIdx, PNum);
+  }
 }
 
 Unit getEdgesWeight(const std::vector<EdgeTy> &Edges, const Graph<Point> &G) {
@@ -126,7 +164,7 @@ Unit getEdgesWeight(const std::vector<EdgeTy> &Edges, const Graph<Point> &G) {
 // Add new point and prepare sorted edges.
 template<typename Compare>
 void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges, size_t PNum, Compare Comp) {
-  connectNewPoint(Edges, PNum);
+  connectNewPoint(Edges, PNum, G);
   auto B = Edges.begin();
   auto E = Edges.end();
   G.swapEdges(Edges);
@@ -216,6 +254,7 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
   G.swapVertices(Vertices);
   G.swapEdges(Edges);
   auto MSTEdges = getMSTEdges(G);
+  std::cout << "Total length of Steiner tree: " << getEdgesWeight(MSTEdges, G) << "\n";
   G.swapEdges(MSTEdges);
   return G;
 }
