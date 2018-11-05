@@ -6,6 +6,20 @@
 
 #include <vector>
 
+template<typename It>
+struct Range {
+  It Begin, End;
+public:
+  Range(It B, It E): Begin(B), End(E) {}
+  auto begin() { return Begin; }
+  auto end() { return End; }
+  auto begin() const { return Begin; }
+  auto end() const { return End; }
+};
+
+template<typename It>
+Range(It B, It E) -> Range<It>;
+
 template<typename T>
 class Graph {
 public:
@@ -32,6 +46,8 @@ public:
   auto edges_end() { return Edges.end(); }
   auto edges_begin() const { return Edges.begin(); }
   auto edges_end() const { return Edges.end(); }
+  auto edges() { return Range(edges_begin(), edges_end()); }
+  auto edges() const { return Range(edges_begin(), edges_end()); }
 
   T &vertice(size_t Idx) { return Vertices[Idx]; }
   const T &vertice(size_t Idx) const { return Vertices[Idx]; }

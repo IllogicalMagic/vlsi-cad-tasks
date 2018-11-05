@@ -59,6 +59,7 @@ public:
 
 using EdgeTy = typename Graph<Point>::EdgeType;
 
+// Assumes that graph edges are sorted by weight.
 template<typename InitAcc, typename UpdateAcc>
 auto getMSTCommon(const Graph<Point> &G, InitAcc Initializer, UpdateAcc Updater) {
   std::vector<DisjointSet<int>> Segments;
@@ -70,15 +71,6 @@ auto getMSTCommon(const Graph<Point> &G, InitAcc Initializer, UpdateAcc Updater)
       return X;
     });
 
-  std::vector<EdgeTy> EdgeCandidates;
-  EdgeCandidates.assign(G.edges_begin(), G.edges_end());
-  std::sort(EdgeCandidates.begin(), EdgeCandidates.end(),
-            [&](const EdgeTy &A, const EdgeTy &B) {
-              auto ADist = dist(G.vertice(A.From), G.vertice(A.To));
-              auto BDist = dist(G.vertice(B.From), G.vertice(B.To));
-              return ADist < BDist;
-            });
-
   // Pick an edge and update accumulator
   // if this edge is not in MST and unite segments.
   // Otherwise skip the edge.
@@ -86,7 +78,7 @@ auto getMSTCommon(const Graph<Point> &G, InitAcc Initializer, UpdateAcc Updater)
   size_t MaxEdges = G.vertices_size() - 1;
 
   auto Accumulator = Initializer();
-  for (auto Edge : EdgeCandidates) {
+  for (auto Edge : G.edges()) {
     auto &FromSet = Segments[Edge.From];
     auto &ToSet = Segments[Edge.To];
     if (FromSet.findReprMember() == ToSet.findReprMember())
