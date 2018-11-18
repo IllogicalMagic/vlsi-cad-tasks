@@ -1,5 +1,6 @@
 #include "MST.h"
 #include "Net.h"
+#include "StlHelpers.hpp"
 #include "Types.h"
 
 #include <algorithm>
@@ -168,6 +169,110 @@ void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges,
   std::inplace_merge(B, E - PNum, E, Comp);
 }
 
+using VertEdges = std::pair<EdgeTy *, EdgeTy *>;
+
+static void
+rememberEdge(EdgeTy *Edge, std::vector<VertEdges> &EdgesToConnect,
+             int Degree, size_t VertIdx) {
+  if (Degree == 1)
+    EdgesToConnect[VertIdx].first = Edge;
+  else if (Degree == 2)
+    EdgesToConnect[VertIdx].second = Edge;
+  else {
+    EdgesToConnect[VertIdx].first = nullptr;
+    EdgesToConnect[VertIdx].second = nullptr;
+  }
+}
+
+void remove2DegreePoints(Graph<Point> &G, size_t NetPts) {
+  std::vector<int> Degrees(G.vertices_size() - NetPts);
+  std::vector<VertEdges> EdgesToConnect(Degrees.size());
+
+  // Find all added vertices with degree <= 2.
+  for (auto &Edge : G.edges()) {
+    if (Edge.From >= NetPts) {
+      int DFrom = ++Degrees[Edge.From - NetPts];
+      rememberEdge(&Edge, EdgesToConnect, DFrom, Edge.From - NetPts);
+    }
+    if (Edge.To >= NetPts) {
+      int DTo = ++Degrees[Edge.To - NetPts];
+      rememberEdge(&Edge, EdgesToConnect, DTo, Edge.To - NetPts);
+    }
+  }
+
+  // Connect edges or remove them.
+  for (size_t VertIdx = 0, VE = Degrees.size(); VertIdx < VE; ++VertIdx) {
+    int D = Degrees[VertIdx];
+    // Degree == one -- remove. Mark edge for later removal.
+    if (D == 1) {
+      auto &Edge = *EdgesToConnect[VertIdx].first;
+      Edge.From = 0;
+      Edge.To = 0;
+    }
+    // Degree == two -- connect.
+    if (D == 2) {
+      auto &Edge1 = *EdgesToConnect[VertIdx].first;
+      auto &Edge2 = *EdgesToConnect[VertIdx].second;
+      size_t Vert = VertIdx + NetPts;
+      // x -> a
+      if (Edge1.From == Vert) {
+        // x -> b
+        if (Edge2.From == Vert)
+          // b -> a
+          Edge1.From = Edge2.To;
+        // b -> x
+        else
+          // b -> a
+          Edge1.From = Edge2.From;
+      // a -> x
+      } else {
+        // x -> b
+        if (Edge2.From == Vert)
+          // a -> b
+          Edge1.To = Edge2.To;
+        // b -> x
+        else
+          // a -> b
+          Edge1.To = Edge2.From;
+      }
+      // Save all info since next iterations could use this info.
+      Edge2 = Edge1;
+    }
+  }
+
+  // Remove all deleted edges.
+  G.edges_erase(std::remove_if(G.edges_begin(), G.edges_end(),
+                               [](EdgeTy E) {
+        return E.From == 0 && E.To == 0;
+      }), G.edges_end());
+
+  // Remove joined edges.
+  std::sort(G.edges_begin(), G.edges_end());
+  G.edges_erase(std::unique(G.edges_begin(), G.edges_end()), G.edges_end());
+
+  auto Res = remove_if_with_index(G.vertices_begin() + NetPts,
+                                  G.vertices_end(),
+                                  [&](Point Pt, size_t Idx) {
+                                    return Degrees[Idx] <= 2;
+                                  });
+  G.vertices_erase(Res, G.vertices_end());
+
+  // Shift points. Removed point can be in the middle
+  // so we need to adjust all edges that contain points
+  // after removed ones.
+  for (int i = Degrees.size() - 1, e = 0; i >= e; --i) {
+    if (Degrees[i] <= 2) {
+      size_t VIdx = i + NetPts;
+      for (auto &Edge : G.edges()) {
+        if (Edge.From > VIdx)
+          --Edge.From;
+        if (Edge.To > VIdx)
+          --Edge.To;
+      }
+    }
+  }
+}
+
 auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
 
   bool Changed = true;
@@ -223,13 +328,15 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
       prepareNewGraphEdges(G, TmpEdges, OldPNum, EdgeSort);
       G.swapEdges(getMSTEdges(G));
 
+      remove2DegreePoints(G, N.size());
+      std::sort(G.edges_begin(), G.edges_end(), EdgeSort);
+
       // Remove selected point from list of candidates.
       std::swap(Grid[BestCandidateIdx], Grid.back());
       Grid.pop_back();
     }
   }
 
-  G.swapEdges(getMSTEdges(G));
   std::cout << "Total length of Steiner tree: " << getEdgesWeight(G) << "\n";
   return G;
 }
