@@ -7,6 +7,8 @@
 #include <fstream>
 #include <numeric>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include <cstring>
@@ -102,15 +104,6 @@ void dumpPoints(const std::vector<Point> &Pts) {
 
 using EdgeTy = typename Graph<Point>::EdgeType;
 
-// Connect all points to all others.
-void connectPoints(std::vector<EdgeTy> &Edges, size_t PNum) {
-  for (size_t i = 0; i < PNum; ++i) {
-    for (size_t j = i + 1; j < PNum; ++j) {
-      Edges.emplace_back(i, j);
-    }
-  }
-}
-
 // Connect new point with at most 8 others.
 // Divide all grid into octants and pick the closest
 // point in each octant.
@@ -154,8 +147,8 @@ void connectNewPoint(std::vector<EdgeTy> &Edges, size_t PNum, const Graph<Point>
   }
 }
 
-Unit getEdgesWeight(const std::vector<EdgeTy> &Edges, const Graph<Point> &G) {
-  return std::accumulate(Edges.begin(), Edges.end(), Unit(),
+Unit getEdgesWeight(const Graph<Point> &G) {
+  return std::accumulate(G.edges_begin(), G.edges_end(), Unit(),
                          [&](Unit TotalLen, EdgeTy Edge) {
                            return TotalLen + dist(G.vertice(Edge.From), G.vertice(Edge.To));
                          });
@@ -163,7 +156,8 @@ Unit getEdgesWeight(const std::vector<EdgeTy> &Edges, const Graph<Point> &G) {
 
 // Add new point and prepare sorted edges.
 template<typename Compare>
-void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges, size_t PNum, Compare Comp) {
+void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges,
+                          size_t PNum, Compare Comp) {
   connectNewPoint(Edges, PNum, G);
   auto B = Edges.begin();
   auto E = Edges.end();
@@ -175,17 +169,13 @@ void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges, size_t PN
 }
 
 auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
-  std::vector<Point> Vertices;
-  Vertices.reserve(N.size() + Grid.size());
-  Vertices.assign(N.begin(), N.end());
-
-  std::vector<EdgeTy> Edges;
-  Edges.reserve(Vertices.capacity() * Vertices.capacity());
-  std::vector<EdgeTy> TmpEdges;
-  TmpEdges.reserve(Edges.capacity());
 
   bool Changed = true;
-  Graph<Point> G;
+  Graph<Point> G(N.begin(), N.end());
+  G.connectAllToAll();
+
+  std::vector<EdgeTy> TmpEdges;
+  TmpEdges.reserve(G.edges_size());
 
   auto EdgeSort = [&](const EdgeTy &A, const EdgeTy &B) {
     auto ADist = dist(G.vertice(A.From), G.vertice(A.To));
@@ -195,31 +185,22 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
 
   // Initial length.
   // TODO: remove this after special graph methods will be added.
-  connectPoints(Edges, Vertices.size());
-  G.swapVertices(Vertices);
-  auto EdgeBegin = Edges.begin();
-  auto EdgeEnd = Edges.end();
-  G.swapEdges(Edges);
-  std::sort(EdgeBegin, EdgeEnd, EdgeSort);
-
-  Edges = getMSTEdges(G);
-  Unit MinLen = getEdgesWeight(Edges, G);
-
-  G.swapVertices(Vertices);
+  std::sort(G.edges_begin(), G.edges_end(), EdgeSort);
+  G.swapEdges(getMSTEdges(G));
+  Unit MinLen = getEdgesWeight(G);
 
   while (Changed && !Grid.empty()) {
     Changed = false;
     size_t GridSize = Grid.size();
     size_t BestCandidateIdx;
-    size_t OldPNum = Vertices.size();
+    size_t OldPNum = G.vertices_size();
 
     for (size_t i = 0; i < GridSize; ++i) {
       Point Pt = Grid[i];
 
       // Create new state with added point and add it to graph.
-      Vertices.push_back(Pt);
-      G.swapVertices(Vertices);
-      TmpEdges.assign(Edges.begin(), Edges.end());
+      G.push_vertice(Pt);
+      TmpEdges.assign(G.edges_begin(), G.edges_end());
       prepareNewGraphEdges(G, TmpEdges, OldPNum, EdgeSort);
       Unit NewLen = getMSTLen(G);
 
@@ -231,19 +212,16 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
       }
 
       // Restore initial state.
-      G.swapVertices(Vertices);
+      G.pop_vertice();
       G.swapEdges(TmpEdges);
-
-      Vertices.pop_back();
     }
 
     // Add new point.
     if (Changed) {
-      Vertices.push_back(Grid[BestCandidateIdx]);
-      G.swapVertices(Vertices);
-      prepareNewGraphEdges(G, Edges, OldPNum, EdgeSort);
-      Edges = getMSTEdges(G);
-      G.swapVertices(Vertices);
+      G.push_vertice(Grid[BestCandidateIdx]);
+      TmpEdges.assign(G.edges_begin(), G.edges_end());
+      prepareNewGraphEdges(G, TmpEdges, OldPNum, EdgeSort);
+      G.swapEdges(getMSTEdges(G));
 
       // Remove selected point from list of candidates.
       std::swap(Grid[BestCandidateIdx], Grid.back());
@@ -251,11 +229,8 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
     }
   }
 
-  G.swapVertices(Vertices);
-  G.swapEdges(Edges);
-  auto MSTEdges = getMSTEdges(G);
-  std::cout << "Total length of Steiner tree: " << getEdgesWeight(MSTEdges, G) << "\n";
-  G.swapEdges(MSTEdges);
+  G.swapEdges(getMSTEdges(G));
+  std::cout << "Total length of Steiner tree: " << getEdgesWeight(G) << "\n";
   return G;
 }
 

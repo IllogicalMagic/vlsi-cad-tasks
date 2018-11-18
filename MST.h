@@ -4,6 +4,7 @@
 #include "Net.h"
 #include "Types.h"
 
+#include <tuple>
 #include <vector>
 
 template<typename It>
@@ -28,14 +29,38 @@ public:
 
     EdgeType() = default;
     EdgeType(size_t from, size_t to): From(from), To(to) {}
+
+    bool operator==(const EdgeType &O) {
+      return std::tie(From, To) == std::tie(O.From, O.To);
+    }
+    bool operator<(const EdgeType &O) {
+      return std::tie(From, To) < std::tie(O.From, O.To);
+    }
   };
 
 private:
-  std::vector<EdgeType> Edges;
-  std::vector<T> Vertices;
+  using ECTy = std::vector<EdgeType>;
+  using VCTy = std::vector<Point>;
 
+  ECTy Edges;
+  VCTy Vertices;
 public:
   Graph() = default;
+
+  template<typename VIt>
+  Graph(VIt VBegin, VIt VEnd):
+    Edges(), Vertices(VBegin, VEnd) {}
+
+  void connectAllToAll() {
+    size_t PNum = Vertices.size();
+    Edges.reserve(PNum * PNum);
+    for (size_t i = 0; i < PNum; ++i) {
+      for (size_t j = i + 1; j < PNum; ++j) {
+        Edges.emplace_back(i, j);
+      }
+    }
+  }
+
   Graph(const Graph &) = delete;
   Graph(Graph &&) = default;
   void operator=(const Graph &) = delete;
@@ -48,11 +73,44 @@ public:
   auto edges_end() const { return Edges.end(); }
   auto edges() { return Range(edges_begin(), edges_end()); }
   auto edges() const { return Range(edges_begin(), edges_end()); }
+  auto edges_size() const { return Edges.size(); }
+  EdgeType &edge(size_t Idx) { return Edges[Idx]; }
+  const EdgeType &edge(size_t Idx) const { return Edges[Idx]; }
+
+  auto edges_erase(typename ECTy::const_iterator It) {
+    return Edges.erase(It);
+  }
+
+  auto edges_erase(typename ECTy::const_iterator First, typename ECTy::const_iterator Last) {
+    return Edges.erase(First, Last);
+  }
 
   T &vertice(size_t Idx) { return Vertices[Idx]; }
   const T &vertice(size_t Idx) const { return Vertices[Idx]; }
 
+  auto vertices_begin() { return Vertices.begin(); }
+  auto vertices_begin() const { return Vertices.begin(); }
+  auto vertices_end() { return Vertices.end(); }
+  auto vertices_end() const { return Vertices.end(); }
   auto vertices_size() const { return Vertices.size(); }
+
+  auto vertices_erase(typename VCTy::const_iterator It) {
+    return Vertices.erase(It);
+  }
+
+  void push_vertice(const T &V) {
+    Vertices.push_back(V);
+  }
+  void push_vertice(T &&V) {
+    Vertices.push_back(std::move(V));
+  }
+  void pop_vertice() {
+    Vertices.pop_back();
+  }
+
+  auto vertices_erase(typename VCTy::const_iterator First, typename VCTy::const_iterator Last) {
+    return Vertices.erase(First, Last);
+  }
 
   void swapVertices(std::vector<T> &Vs) {
     std::swap(Vertices, Vs);
@@ -61,6 +119,10 @@ public:
   void swapEdges(std::vector<EdgeType> &Es) {
     std::swap(Edges, Es);
   }
+  void swapEdges(std::vector<EdgeType> &&Es) {
+    Edges = std::move(Es);
+  }
+
 
   void dump() const {
     std::cout << "Vertices:" << std::endl;
