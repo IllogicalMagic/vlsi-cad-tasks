@@ -96,7 +96,7 @@ std::string parseArgs(int argc, char **argv) {
   __builtin_unreachable();
 }
 
-__attribute((unused))
+[[maybe_unused]]
 void dumpPoints(const std::vector<Point> &Pts) {
   for (Point P : Pts) {
     std::cout << P << std::endl;
@@ -337,8 +337,17 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
     }
   }
 
-  std::cout << "Total length of Steiner tree: " << getEdgesWeight(G) << "\n";
   return G;
+}
+
+void fillNet(Net &N, const Graph<Point> &G) {
+  std::for_each(G.vertices_begin() + N.size(), G.vertices_end(),
+                [&](Point Pt) {
+                  N.addViaPoint(Pt);
+                });
+  for (auto Edge : G.edges()) {
+    N.addConnection(G.vertice(Edge.From), G.vertice(Edge.To));
+  }
 }
 
 int main(int argc, char **argv) {
@@ -346,6 +355,8 @@ int main(int argc, char **argv) {
   Net N = buildNet(std::move(In));
   std::vector<Point> C = getHanansGrid(N);
   Graph<Point> G = iteratedSteiner(N, std::move(C));
-  G.dump();
+  fillNet(N, G);
+  N.finalizeNet();
+  N.dumpXML(std::cout);
   return 0;
 }

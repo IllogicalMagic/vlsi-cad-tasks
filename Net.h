@@ -5,6 +5,7 @@
 #include "Types.h"
 
 #include <istream>
+#include <tuple>
 #include <vector>
 
 struct Point {
@@ -14,27 +15,39 @@ struct Point {
   Point(Unit InX, Unit InY): x(InX), y(InY) {}
 };
 
-static __attribute__((unused))
+[[maybe_unused]] static
 bool operator<(Point A, Point B) {
-  if (A.x == B.x)
-    return A.y < B.y;
-  return A.x < B.x;
+  return std::tie(A.x, A.y) < std::tie(B.x, B.y);
+
 }
 
-static __attribute__((unused))
+[[maybe_unused]] static
+bool operator==(Point A, Point B) {
+  return std::tie(A.x, A.y) == std::tie(B.x, B.y);
+}
+
+
+[[maybe_unused]] static
 std::istream &operator>>(std::istream &In, Point &Pt) {
   In >> Pt.x >> Pt.y;
   return In;
 }
 
-static __attribute__((unused))
+[[maybe_unused]] static
 std::ostream &operator<<(std::ostream &Out, Point Pt) {
   Out << "(" << Pt.x << ";" << Pt.y << ")";
   return Out;
 }
 
 class Net {
+  using Segment = std::pair<Point, Point>;
+
   std::vector<Point> Pts;
+  std::vector<Point> Via;
+  std::vector<Segment> VertSeg;
+  std::vector<Segment> HorSeg;
+  std::vector<Point> M23Trans;
+
   Point LBCorner;
   Point RUCorner;
 
@@ -69,10 +82,15 @@ public:
   auto end() const { return Pts.end(); }
   auto size() const { return Pts.size(); }
 
-  // TODO: Add dump method.
+  void addViaPoint(Point Pt);
+  void addConnection(Point From, Point To);
+
+  // Remove duplicates in transitions layers.
+  void finalizeNet();
+  void dumpXML(std::ostream &O) const;
 };
 
-static __attribute__((unused))
+[[maybe_unused]] static
 Unit dist(Point A, Point B) {
   return std::abs(A.x - B.x) + std::abs(A.y - B.y);
 }
