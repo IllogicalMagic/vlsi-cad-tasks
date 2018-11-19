@@ -30,7 +30,7 @@ output = options.fetch(:out)
 out = File.open(output, "w")
 net = File.open(input) { |f| Nokogiri::XML(f) }
 task = net.child
-fail "Task node is missed" unless task.name == 'task'
+fail "Task node is missed" unless task.name == 'root'
 task_children = task.children.select{ |c| c.element? }
 fail "Too many child nodes in task" unless task_children.size == 2
 fail "Grid node should be first" unless task_children[0].name == "grid"
