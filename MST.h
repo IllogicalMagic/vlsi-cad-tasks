@@ -40,7 +40,7 @@ public:
 
 private:
   using ECTy = std::vector<EdgeType>;
-  using VCTy = std::vector<Point>;
+  using VCTy = std::vector<T>;
 
   ECTy Edges;
   VCTy Vertices;
