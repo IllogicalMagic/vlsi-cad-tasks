@@ -310,7 +310,7 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
       Unit NewLen = getMSTLen(G);
 
       // Save point if it is the best solution.
-      if (NewLen < MinLen) {
+      if (NewLen <= MinLen) {
         Changed = true;
         BestCandidateIdx = i;
         MinLen = NewLen;
@@ -358,5 +358,9 @@ int main(int argc, char **argv) {
   fillNet(N, G);
   N.finalizeNet();
   N.dumpXML(std::cout);
+#ifdef DEBUG_DUMP
+  G.dump();
+  std::cerr << getEdgesWeight(G) << "\n";
+#endif
   return 0;
 }

@@ -131,7 +131,8 @@ public:
     }
     std::cout << "Edges:" << std::endl;
     for (auto E : Edges) {
-      std::cout << E.From << " -> " << E.To << std::endl;
+      std::cout << E.From << " -> " << E.To << ": ";
+      std::cout << dist(vertice(E.From), vertice(E.To)) << std::endl;
     }
   }
 

@@ -67,10 +67,11 @@ public:
   void addPoint(Point P) {
     if (P.x < LBCorner.x ||
         P.y < LBCorner.y ||
-        P.x >= RUCorner.x ||
-        P.y >= RUCorner.y) {
+        P.x > RUCorner.x ||
+        P.y > RUCorner.y) {
       report_error("Attempt to add point outside of grid.\n"
-                   "Grid parameters: (", LBCorner.x, "x", LBCorner.y, ");\n",
+                   "Grid parameters: (", LBCorner.x, "x", LBCorner.y, "); (",
+                   RUCorner.x, "x", RUCorner.y, ");\n",
                    "Point coordinates: (", P.x, "x", P.y, ").\n");
     }
     Pts.emplace_back(P);
