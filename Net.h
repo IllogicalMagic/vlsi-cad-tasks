@@ -52,7 +52,11 @@ class Net {
   Point RUCorner;
 
 public:
-  Net(Point LB, Point RU): LBCorner(LB), RUCorner(RU) {}
+  Net() = default;
+  void addCorners(Point LB, Point RU) {
+    LBCorner = LB;
+    RUCorner = RU;
+  }
 
   Net(const Net &) = delete;
   Net(Net &&) = default;

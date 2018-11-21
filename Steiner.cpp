@@ -7,6 +7,7 @@
 #include <array>
 #include <fstream>
 #include <numeric>
+#include <regex>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -54,19 +55,41 @@ auto getHanansGrid(const Net &N) {
 
 Net buildNet(const std::string In) {
   std::ifstream InFile(In);
-  Point LB, RU;
-  InFile >> LB >> RU;
-  Net N(LB, RU);
-  size_t PointsNum;
-  InFile >> PointsNum;
-  N.reserve(PointsNum);
-  Point P;
-  while (InFile >> P) {
-    --PointsNum;
-    N.addPoint(P);
+  std::string Line;
+  // <grid min_x="x1" max_x="x2" min_y="y1" max_y="y2" />
+  std::regex Grid("<[ ]*grid[^/]*/>");
+  std::regex MinX("min_x=\"([^\"]+)\"");
+  std::regex MinY("min_y=\"([^\"]+)\"");
+  std::regex MaxX("max_x=\"([^\"]+)\"");
+  std::regex MaxY("max_y=\"([^\"]+)\"");
+  // <point x="x" y="y" ... />
+  std::regex PtReg("<[ ]*point[^/]*/>");
+  std::regex PtX("x=\"([^\"]+)\"");
+  std::regex PtY("y=\"([^\"]+)\"");
+
+  std::smatch M;
+  Net N;
+  while (getline(InFile, Line)) {
+    if (std::regex_search(Line, M, PtReg)) {
+      Point P;
+      std::regex_search(Line, M, PtX);
+      P.x = std::stoi(M[1].str());
+      std::regex_search(Line, M, PtY);
+      P.y = std::stoi(M[1].str());
+      N.addPoint(P);
+    } else if (std::regex_search(Line, M, Grid)) {
+      Point LB, RU;
+      std::regex_search(Line, M, MinX);
+      LB.x = std::stoi(M[1].str());
+      std::regex_search(Line, M, MinY);
+      LB.y = std::stoi(M[1].str());
+      std::regex_search(Line, M, MaxX);
+      RU.x = std::stoi(M[1].str());
+      std::regex_search(Line, M, MaxY);
+      RU.y = std::stoi(M[1].str());
+      N.addCorners(LB, RU);
+    }
   }
-  if (PointsNum)
-    report_error("Bad number of points in input file");
 
   return N;
 }
