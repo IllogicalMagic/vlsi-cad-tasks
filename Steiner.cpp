@@ -182,14 +182,16 @@ Unit getEdgesWeight(const Graph<Point> &G) {
 template<typename Compare>
 void prepareNewGraphEdges(Graph<Point> &G, std::vector<EdgeTy> &Edges,
                           size_t PNum, Compare Comp) {
+  size_t CurPts = Edges.size();
   connectNewPoint(Edges, PNum, G);
-  auto B = Edges.begin();
-  auto E = Edges.end();
   G.swapEdges(Edges);
   // All old edges are already sorted so there is no need to sort all range.
   // Just sort new edges and then merge.
-  std::sort(E - PNum, E, Comp);
-  std::inplace_merge(B, E - PNum, E, Comp);
+  auto B = G.edges_begin();
+  auto M = B + CurPts;
+  auto E = G.edges_end();
+  std::sort(M, E, Comp);
+  std::inplace_merge(B, M, E, Comp);
 }
 
 using VertEdges = std::pair<EdgeTy *, EdgeTy *>;
