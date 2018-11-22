@@ -53,7 +53,14 @@ auto getHanansGrid(const Net &N) {
   return Grid;
 }
 
-Net buildNet(const std::string In) {
+template<size_t N>
+constexpr size_t cstr_len(const char (&x)[N]) { return N - 1; }
+
+Net buildNet(const std::string &In) {
+  if (In.rfind(".xml") != In.size() - cstr_len(".xml")) {
+    report_error("File name should be <name>.xml!\n");
+  }
+
   std::ifstream InFile(In);
   std::string Line;
   // <grid min_x="x1" max_x="x2" min_y="y1" max_y="y2" />
@@ -100,20 +107,16 @@ std::string parseArgs(int argc, char **argv) {
   }
 
   for (int i = 1; i < argc; ++i) {
-    if (strcmp(argv[i], "--input") == 0) {
-      if (i == argc - 1)
-        report_error("Filename should be specified after --input option.\n");
-      return {argv[i + 1]};
-    } else if (strcmp(argv[i], "--help") == 0) {
+    if (strcmp(argv[i], "--help") == 0) {
       std::cout <<
         "Usage: Steiner <options>.\n"
         "Allowed options:\n"
         "  --help           prints usage and exits\n"
-        "  --input <file>   specifies input file with net configuration."
+        "  <file>.xml       specifies input file with net configuration."
                 << std::endl;
       exit(0);
     } else {
-      report_error("Unknown option. Try --help.\n");
+      return {argv[i]};
     }
   }
   __builtin_unreachable();
@@ -375,14 +378,20 @@ void fillNet(Net &N, const Graph<Point> &G) {
   }
 }
 
+void dumpNet(const Net &N, std::string FName) {
+  FName.insert(FName.size() - cstr_len(".xml"), "_out", cstr_len("_out"));
+  std::ofstream OutFile(FName);
+  N.dumpXML(OutFile);
+}
+
 int main(int argc, char **argv) {
   std::string In = parseArgs(argc, argv);
-  Net N = buildNet(std::move(In));
+  Net N = buildNet(In);
   std::vector<Point> C = getHanansGrid(N);
   Graph<Point> G = iteratedSteiner(N, std::move(C));
   fillNet(N, G);
   N.finalizeNet();
-  N.dumpXML(std::cout);
+  dumpNet(N, std::move(In));
 #ifdef DEBUG_DUMP
   G.dump();
   std::cerr << getEdgesWeight(G) << "\n";
