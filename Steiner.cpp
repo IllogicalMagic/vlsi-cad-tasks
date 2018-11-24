@@ -369,10 +369,6 @@ auto iteratedSteiner(const Net &N, std::vector<Point> Grid) {
 }
 
 void fillNet(Net &N, const Graph<Point> &G) {
-  std::for_each(G.vertices_begin() + N.size(), G.vertices_end(),
-                [&](Point Pt) {
-                  N.addViaPoint(Pt);
-                });
   for (auto Edge : G.edges()) {
     N.addConnection(G.vertice(Edge.From), G.vertice(Edge.To));
   }

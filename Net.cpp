@@ -3,10 +3,6 @@
 #include <algorithm>
 #include <iostream>
 
-void Net::addViaPoint(Point Pt) {
-  Via.push_back(Pt);
-}
-
 void Net::addConnection(Point From, Point To) {
   Unit XDiff = std::abs(From.x - To.x);
   Unit YDiff = std::abs(From.y - To.y);
@@ -38,11 +34,6 @@ void Net::addConnection(Point From, Point To) {
 
 // Remove duplicates in transitions layers.
 void Net::finalizeNet() {
-  // Lift pins to m2 layer as vias.
-  std::copy(Pts.begin(), Pts.end(), std::back_inserter(Via));
-  std::sort(Via.begin(), Via.end());
-  Via.erase(std::unique(Via.begin(), Via.end()), Via.end());
-
   // Remove excess transitions form m3 to m2.
   std::sort(M23Trans.begin(), M23Trans.end());
   M23Trans.erase(std::unique(M23Trans.begin(), M23Trans.end()), M23Trans.end());
@@ -134,7 +125,8 @@ void Net::dumpXML(std::ostream &O) const {
     O << "    ";
     dumpPoint(O, P, Pin, Pins);
   }
-  for (const auto P : Via) {
+  // Lift pins to m2 layer as vias.
+  for (const auto P : Pts) {
     O << "    ";
     dumpPoint(O, P, ViaPin, Pins_M2);
   }

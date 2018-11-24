@@ -43,7 +43,6 @@ class Net {
   using Segment = std::pair<Point, Point>;
 
   std::vector<Point> Pts;
-  std::vector<Point> Via;
   std::vector<Segment> VertSeg;
   std::vector<Segment> HorSeg;
   std::vector<Point> M23Trans;
@@ -87,7 +86,6 @@ public:
   auto end() const { return Pts.end(); }
   auto size() const { return Pts.size(); }
 
-  void addViaPoint(Point Pt);
   void addConnection(Point From, Point To);
 
   // Remove duplicates in transitions layers.
